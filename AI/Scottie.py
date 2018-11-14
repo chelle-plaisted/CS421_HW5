@@ -33,6 +33,11 @@ class AIPlayer(Player):
 
     def __init__(self, inputPlayerId):
         super(AIPlayer, self).__init__(inputPlayerId, "Michael Scott")
+        # neural network instance variables
+        self.inputs = []
+        self.weights = self.initializeWeights()
+        self.stateScoreMap = [] # dict of { state => score } for learning
+        self.numGames = 0 # to tell when you start running neural net during learning phase
 
     ##
     # getPlacement
@@ -129,9 +134,11 @@ class AIPlayer(Player):
         INVALID_EVAL = -10
         if depth < self.DEPTH_LIMIT:
             moves = listAllLegalMoves(state)
-            nodes = [Node(move, getNextStateAdversarial(state, move),
-                          self.performanceMeasure(getNextStateAdversarial(state, move), me, state.whoseTurn)) for move
-                     in moves]
+            nodes = []
+            for move in moves:
+                nextState = getNextStateAdversarial(state, move)
+                score = self.performanceMeasure(nextState, me, state.whoseTurn) # TODO: call neuralNetwork(state) instead of performance measure (NOT when learning)
+                nodes += [Node(move, nextState, score)]
 
             # prune all but the best BREADTH_LIMIT nodes
             nodes = self.initialPrune(nodes)
@@ -164,6 +171,7 @@ class AIPlayer(Player):
                 evaluation = min(evaluations)
 
         elif depth > 0:
+            # TODO: call neuralNetwork(state) instead of performance measure (NOT when learning)
             return self.performanceMeasure(state, me, state.whoseTurn)
 
         if depth == 0:
@@ -440,11 +448,102 @@ class AIPlayer(Player):
     ##
     # registerWin
     #
-    # This agent doesn't learn
+    # Run the neural network at the end of the tournament during learning
     #
     def registerWin(self, hasWon):
         # method template, not implemented
+        self.gamesPlayed += 1
+        # should I learn?
+        if self.gamesPlayed == self.numGames:
+            # TODO call self.neuralNetwork(state, True, score) for every state score pair in
+            # self.stateScoreMap
+            pass
         pass
+
+    ############################### NEURAL NETWORK FUNCTIONS ####################
+
+    ## TODO complete
+    # initializeWeights
+    #
+    # Description: initialize the weights to a hardcoded list
+    #
+    # Return: a list of hardcoded weights
+    ##
+    def initializeWeights(self):
+        return []
+
+
+    ## TODO complete
+    # mapInputs
+    #
+    # Description: map the relevant information from the state to an input array containing
+    # values in the range [-1, 1]. Store input array in self.inputs
+    # TODO determine [-1, 1] or [0, 1]
+    #
+    # Parameters:
+    #   state: the state to generate inputs for
+    ##
+    def mapInputs(self, state):
+        pass
+
+    ## TODO complete
+    # neuralNetwork
+    #
+    # Description: complete the steps to run the neural network and learn if relevant
+    #
+    # Parameters:
+    #   state: GameState being evaluated with neural network
+    #   training: boolean value to include if you want the agent to learn through
+    #       backpropogation. Defaults to False.
+    #   score: score from evaluation function for learning. Only include if training.
+    #       Defaults to None.
+    #
+    # Return : the evaluation score determined by the neural network.
+    ##
+    def neuralNetwork(self, state, training = False, score = None):
+        # map inputs correctly
+        self.mapInputs(state)
+
+        # run network by running input array through network
+            # multiply by weight
+            # sum for each node
+            # apply activation function: g(x) = 1 / 1- e^x
+        output = self.runNetwork()
+
+        if training:
+            # calculate error (compare)
+            error = output - score # TODO : check that this isn't backwards
+            # apply backpropogation to update weights stored in instance variables
+            self.backpropogate(error)
+            print(self.weights)
+
+        return output
+        pass
+
+    ## TODO complete
+    # runNetwork
+    #
+    # Description: use instance variables for inputs and weights to run the network
+    # and return an output evalutation.
+    #
+    # Return : the evaluation score determined by the network
+    ##
+    def runNetwork():
+        pass
+
+    ## TODO complete
+    # backpropogate
+    #
+    # Description: apply backpropogation algorithm (see assignment description for notes
+    # on resources) and update weights stored in instance variables
+    #
+    # Parameters:
+    #   error : error of network
+    ##
+    def backpropogate(self, error):
+        pass
+
+
 
 ##
 # Revised version of getNextStateAdversarial from AIPlayerUtils
