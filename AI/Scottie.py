@@ -35,9 +35,9 @@ class AIPlayer(Player):
         super(AIPlayer, self).__init__(inputPlayerId, "Michael Scott")
         # neural network instance variables
         self.inputs = []
-        self.weights = self.initializeWeights()
+        self.weights = self.initializeWeights(True) #TODO remove 'True' when not training
         self.stateScoreMap = [] # dict of { state => score } for learning
-        self.numGames = 0 # to tell when you start running neural net during learning phase
+        self.learningWeight = 1 # TODO : test and edit if needed
 
     ##
     # getPlacement
@@ -454,10 +454,10 @@ class AIPlayer(Player):
         # method template, not implemented
         self.gamesPlayed += 1
         # should I learn?
-        if self.gamesPlayed == self.numGames:
-            # TODO call self.neuralNetwork(state, True, score) for every state score pair in
-            # self.stateScoreMap
-            pass
+		# TODO call self.neuralNetwork(state, True, score) for every state score pair in
+		# self.stateScoreMap
+		# reset the state-score map
+		self.stateScoreMap = {}
         pass
 
     ############################### NEURAL NETWORK FUNCTIONS ####################
@@ -467,10 +467,15 @@ class AIPlayer(Player):
     #
     # Description: initialize the weights to a hardcoded list
     #
+	# Parameters:
+	#	training: when training, use a randomized initialization; otherwise, hard code.
     # Return: a list of hardcoded weights
     ##
-    def initializeWeights(self):
-        return []
+    def initializeWeights(self, training = False):
+        if training:
+			return []
+		else :
+			return []
 
 
     ## TODO complete
