@@ -36,8 +36,9 @@ class AIPlayer(Player):
         # neural network instance variables
         self.inputs = []
         self.weights = self.initializeWeights(True) #TODO remove 'True' when not training
-        self.stateScoreMap = [] # dict of { state => score } for learning
+        self.stateScoreMap = {} # dict of { state => score } for learning
         self.learningWeight = 1 # TODO : test and edit if needed
+		self.numHiddenNodes = 0 # TODO change to 2/3 * 1 + len(self.inputs)
 
     ##
     # getPlacement
@@ -348,6 +349,7 @@ class AIPlayer(Player):
         if len(enemyWorkers) > 0:
             target = enemyWorkers[0].coords
         else:
+		
             target = getEnemyInv(None, state).getQueen().coords
 
         x = 0
@@ -473,7 +475,7 @@ class AIPlayer(Player):
     ##
     def initializeWeights(self, training = False):
         if training:
-			return []
+			return [] # randomize weights
 		else :
 			return []
 
@@ -483,13 +485,33 @@ class AIPlayer(Player):
     #
     # Description: map the relevant information from the state to an input array containing
     # values in the range [-1, 1]. Store input array in self.inputs
-    # TODO determine [-1, 1] or [0, 1]
     #
     # Parameters:
     #   state: the state to generate inputs for
     ##
     def mapInputs(self, state):
+		# map worker locations 
+		
         pass
+		###
+		Locations : boolean 
+			My ants: worker  (40), queen (40), soliders(100)
+			enemy ants: worker(40), attacking ant any type-- Drone, Solider, R_Soldier (100)
+		Number of ants : mix of boolean and scales
+			My ants: worker = 0 or more than 2, worker = 1, worker = 2, queen, drone, soldier <= 2, soldier > 2, r_soldier 
+			enemy ants: worker, any type of attacking ant 
+		food distance : 
+			My ants: average distance of all carrying workers to food drop off, average distance of all not carrying workers to food
+			enemy ants:  average distance of all carrying workers to food drop off, average distance of all not carrying workers to food
+		soldier distance : avg / 25 
+			my ants: average distance of all soldiers to their target 
+		health: half health = 0
+			my ants: queen health 
+			enemy ants: queen health 
+		amount of food: 1 food = 1/11
+			my ants: food amount 
+			enemy ants: food amount
+		###
 
     ## TODO complete
     # neuralNetwork
