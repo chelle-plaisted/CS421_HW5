@@ -34,10 +34,10 @@ class AIPlayer(Player):
     def __init__(self, inputPlayerId):
         super(AIPlayer, self).__init__(inputPlayerId, "Michael Scott")
         # neural network instance variables
-        self.inputs = [] # will be length 242
+        self.inputs = [0] * 343 # will be length 343
         self.stateScoreMap = {} # dict of { state => score } for learning
         self.learningWeight = 1 # TODO : test and edit if needed
-        self.numHiddenNodes = 0 # TODO change to 2/3 * 1 + len(self.inputs)
+        self.numHiddenNodes = 330 # TODO change to 2/3 * 1 + len(self.inputs)
         self.weights = self.initializeWeights(True) #TODO remove 'True' when not training
 
     ##
@@ -140,7 +140,7 @@ class AIPlayer(Player):
                 score = self.performanceMeasure(nextState, me, state.whoseTurn)
                 print('eval function: ', score)
                 # TODO: call neuralNetwork(state) instead of performance measure (NOT when learning)
-                score2 = self.neuralNetwork(state, me)
+                score2 = self.neuralNetwork(nextState, me)
                 print('network: ', score2)
                 nodes += [Node(move, nextState, score)]
 
