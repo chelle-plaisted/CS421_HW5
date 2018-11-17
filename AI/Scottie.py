@@ -1,5 +1,5 @@
 import sys
-
+import math
 sys.path.append("..")  # so other modules can be found in parent dir
 from Player import *
 from AIPlayerUtils import *
@@ -35,10 +35,10 @@ class AIPlayer(Player):
         super(AIPlayer, self).__init__(inputPlayerId, "Michael Scott")
         # neural network instance variables
         self.inputs = []
-        self.weights = self.initializeWeights(True) #TODO remove 'True' when not training
         self.stateScoreMap = {} # dict of { state => score } for learning
         self.learningWeight = 1 # TODO : test and edit if needed
-		self.numHiddenNodes = 0 # TODO change to 2/3 * 1 + len(self.inputs)
+        self.numHiddenNodes = 0 # TODO change to 2/3 * 1 + len(self.inputs)
+        self.weights = self.initializeWeights(True) #TODO remove 'True' when not training
 
     ##
     # getPlacement
@@ -138,7 +138,9 @@ class AIPlayer(Player):
             nodes = []
             for move in moves:
                 nextState = getNextStateAdversarial(state, move)
-                score = self.performanceMeasure(nextState, me, state.whoseTurn) # TODO: call neuralNetwork(state) instead of performance measure (NOT when learning)
+                score = self.performanceMeasure(nextState, me, state.whoseTurn)
+                # TODO: call neuralNetwork(state) instead of performance measure (NOT when learning)
+                # score = self.neuralNetwork(state, me)
                 nodes += [Node(move, nextState, score)]
 
             # prune all but the best BREADTH_LIMIT nodes
@@ -349,7 +351,7 @@ class AIPlayer(Player):
         if len(enemyWorkers) > 0:
             target = enemyWorkers[0].coords
         else:
-		
+
             target = getEnemyInv(None, state).getQueen().coords
 
         x = 0
@@ -459,41 +461,49 @@ class AIPlayer(Player):
 		# TODO call self.neuralNetwork(state, True, score) for every state score pair in
 		# self.stateScoreMap
 		# reset the state-score map
-		self.stateScoreMap = {}
+        self.stateScoreMap = {}
         pass
 
     ############################### NEURAL NETWORK FUNCTIONS ####################
 
-    ## TODO complete
+    ##
     # initializeWeights
     #
-    # Description: initialize the weights to a hardcoded list
+    # Description: initialize the weights to a list of proper length. Set starting values
+    # [-1, 1]
     #
 	# Parameters:
 	#	training: when training, use a randomized initialization; otherwise, hard code.
     # Return: a list of hardcoded weights
     ##
     def initializeWeights(self, training = False):
+        # need weights for every input (which includes bias) * number of hidden nodes
+        # needs weights for output * number of hidden nodes + 1 for output bias
+        length = len(self.inputs) * self.numHiddenNodes + 1 * self.numHiddenNodes + 1
+        rtn = []
         if training:
-			return [] # randomize weights
-		else :
-			return []
+            for i in range(0,length): # randomize weights
+                rtn += [random.uniform(-1, 1)]
+        else:
+            pass
+        return rtn
 
 
     ## TODO complete
     # mapInputs
     #
     # Description: map the relevant information from the state to an input array containing
-    # values in the range [-1, 1]. Store input array in self.inputs
+    # values in the range [-1, 1]. Store input array in self.inputs. Includes a bias value of 1.
     #
     # Parameters:
     #   state: the state to generate inputs for
     ##
     def mapInputs(self, state):
-		# map worker locations 
-		
+		# map worker locations
+
         pass
 		###
+<<<<<<< HEAD
         
         enemyHill = getConstrList(state, 1-me, (ANTHILL,))[0]
         enemyTunnel = getConstrList(state, 1-me, (TUNNEL,))[0]
@@ -627,6 +637,25 @@ class AIPlayer(Player):
         
 
 
+=======
+		# Locations : boolean
+		# 	My ants: worker  (40), queen (40), soliders(100)
+		# 	enemy ants: worker(40), attacking ant any type-- Drone, Solider, R_Soldier (100)
+		# Number of ants : mix of boolean and scales
+		# 	My ants: worker = 0 or more than 2, worker = 1, worker = 2, queen, drone, soldier <= 2, soldier > 2, r_soldier
+		# 	enemy ants: worker, any type of attacking ant
+		# food distance :
+		# 	My ants: average distance of all carrying workers to food drop off, average distance of all not carrying workers to food
+		# 	enemy ants:  average distance of all carrying workers to food drop off, average distance of all not carrying workers to food
+		# soldier distance : avg / 25
+		# 	my ants: average distance of all soldiers to their target
+		# health: half health = 0
+		# 	my ants: queen health
+		# 	enemy ants: queen health
+		# amount of food: 1 food = 1/11
+		# 	my ants: food amount
+		# 	enemy ants: food amount
+>>>>>>> cb8579ede2f0e677fa01e899fd4dfca0f27b81ac
 		###
 
     ## TODO complete
@@ -636,6 +665,7 @@ class AIPlayer(Player):
     #
     # Parameters:
     #   state: GameState being evaluated with neural network
+    #   me: this AI's player Id
     #   training: boolean value to include if you want the agent to learn through
     #       backpropogation. Defaults to False.
     #   score: score from evaluation function for learning. Only include if training.
@@ -643,7 +673,7 @@ class AIPlayer(Player):
     #
     # Return : the evaluation score determined by the neural network.
     ##
-    def neuralNetwork(self, state, training = False, score = None):
+    def neuralNetwork(self, state, me, training = False, score = None):
         # map inputs correctly
         self.mapInputs(state)
 
@@ -655,7 +685,7 @@ class AIPlayer(Player):
 
         if training:
             # calculate error (compare)
-            error = output - score # TODO : check that this isn't backwards
+            error = score - output
             # apply backpropogation to update weights stored in instance variables
             self.backpropogate(error)
             print(self.weights)
@@ -671,8 +701,34 @@ class AIPlayer(Player):
     #
     # Return : the evaluation score determined by the network
     ##
-    def runNetwork():
-        pass
+    def runNetwork(self):
+        outputs = []
+        # run inputs through hidden layer to get outputs
+
+        # each input gets run for each hidden node
+        for i in range(0, self.numHiddenNodes):
+            # get weighted sum
+            sum = 0
+            counter = i * len(self.inputs) # get to correct set of inputs
+            for input in self.inputs:
+                sum += input * self.weights[counter]
+                counter += 1
+
+            # apply activation function
+            result = 1 / (1 + math.exp(-sum))
+            outputs.append(result)
+
+        # with hidden node values, propogate to output node
+        sum = 0
+        counter = self.numHiddenNodes * len(self.inputs) # starting index in weights
+        outputs.append(1) # bias
+        # weighted sum
+        for val in outputs:
+            sum += val * self.weights[counter]
+            counter += 1
+        # apply activation function
+        result = 1 / (1 + math.exp(-sum))
+        return result
 
     ## TODO complete
     # backpropogate
@@ -828,3 +884,20 @@ nodes = [Node(Move(END, None, None), testState, evaluation) for evaluation in ra
 bestNode = newPlayer.findBestChild(nodes)
 if not bestNode.eval == 29:
     print("Error in findBestChild(): findBestChild() returns %s instead of 29" % (bestNode.eval))
+
+
+# test initializeWeights
+newPlayer.inputs = [0] * 5 # 4 inputs + bias
+newPlayer.numHiddenNodes = 5
+weights = newPlayer.initializeWeights(True)
+if not len(weights) == 31:
+    print("Error in initializeWeights(): initializeWeights() makes length %s instead of 31" % (len(weights)))
+    print("Inputs: %s; Hidden Nodes: %s" % (len(newPlayer.inputs), newPlayer.numHiddenNodes))
+
+# test runNetwork
+newPlayer.inputs = [2, 4, 1] # 1 for bias
+newPlayer.weights = [-1, 1, 1, 2, 3, 2, 0, -2, -1, 2, 3, -1, -1]
+newPlayer.numHiddenNodes = 3
+result = newPlayer.runNetwork()
+if not round(result, 3) == 0.980:
+    print("Error in runNetwork(): runNetwork() returns %s instead of 0.980 (rounded)" % round(result, 3))
