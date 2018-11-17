@@ -34,7 +34,7 @@ class AIPlayer(Player):
     def __init__(self, inputPlayerId):
         super(AIPlayer, self).__init__(inputPlayerId, "Michael Scott")
         # neural network instance variables
-        self.inputs = []
+        self.inputs = [] # will be length 242
         self.stateScoreMap = {} # dict of { state => score } for learning
         self.learningWeight = 1 # TODO : test and edit if needed
         self.numHiddenNodes = 0 # TODO change to 2/3 * 1 + len(self.inputs)
@@ -107,7 +107,6 @@ class AIPlayer(Player):
         me = currentState.whoseTurn
         return self.recursiveMoveFinder(currentState, 0, me, -2, 2)
 
-
     ##
     # recursiveMoveFinder
     #
@@ -139,8 +138,10 @@ class AIPlayer(Player):
             for move in moves:
                 nextState = getNextStateAdversarial(state, move)
                 score = self.performanceMeasure(nextState, me, state.whoseTurn)
+                print('eval function: ', score)
                 # TODO: call neuralNetwork(state) instead of performance measure (NOT when learning)
-                # score = self.neuralNetwork(state, me)
+                score2 = self.neuralNetwork(state, me)
+                print('network: ', score2)
                 nodes += [Node(move, nextState, score)]
 
             # prune all but the best BREADTH_LIMIT nodes
@@ -455,9 +456,6 @@ class AIPlayer(Player):
     # Run the neural network at the end of the tournament during learning
     #
     def registerWin(self, hasWon):
-        # method template, not implemented
-        self.gamesPlayed += 1
-        # should I learn?
 		# TODO call self.neuralNetwork(state, True, score) for every state score pair in
 		# self.stateScoreMap
 		# reset the state-score map
@@ -488,6 +486,35 @@ class AIPlayer(Player):
             pass
         return rtn
 
+    ## TODO complete
+    # getLocationInputs
+    #
+    # Description: map the cells the of the playing area to a list, with
+    # false values if there is no ant there, and true if there is
+    #
+    # Parameters:
+    #   antList : list of ants to check
+    #   length : length of list
+    #   bottom : boolean for if the ants are on the bottom
+    #   fullRange : does the ant have full range of the board
+    # Return : the cells
+    ##
+    def getLocationInputs(self, antList, length, bottom, fullRange = True):
+        newCells = [False] * length
+        # reset the cells where ants are located to be True
+        for ant in antList:
+            x = ant.coords[0]
+            y = ant.coords[1]
+            if not fullRange and (bottom and y < 6) or (not bottom and y > 3):
+                # not in range
+                continue
+
+            if bottom:
+                # on bottom half
+                x = 9 - worker.coords[0]
+                y = 9 - worker.coords[1]
+            newCells[x + y * 10] = True
+        return newCells
 
     ## TODO complete
     # mapInputs
@@ -506,27 +533,93 @@ class AIPlayer(Player):
         enemyArmy = getAntList(state, 1-me, (DRONE,SOLDIER,R_SOLDIER,))
         enemyWorkers = getAntList(state, 1-me, (WORKER,))
         enemyQueen = getAntList(state, 1-me, (QUEEN,))[0]
+        myHill = getConstrList(state, me, (ANTHILL,))[0]
+        myTunnel = getConstrList(state, me, (TUNNEL,))[0]
         myInv = getCurrPlayerInventory(state)
         myQueen = myInv.getQueen()
         myWorkers = getAntList(state, me, (WORKER,))
-        mySoliders = getAntList(state, me, (SOLDIER,))
-        myRSoliders = getAntList(state, me, (R_SOLDIER,))
+        mySoldiers = getAntList(state, me, (SOLDIER,))
+        myRSoldiers = getAntList(state, me, (R_SOLDIER,))
         myDrone = getAntList(state, me, (DRONE,))
+        turn = state.whoseTurn
+        state.whoseTurn = me
+        myFoods = getCurrPlayerFood(self, state)
+        state.whoseTurn = turn
         inputs = []
 
-		# map worker locations
-        ##Locations : boolean
-        #My ants: worker  (40), queen (40), soliders(100)
-        #enemy ants: worker(40), attacking ant any type-- Drone, Solider, R_Soldier (100)
-        # Scottie's ants
-        inputs += [False] * 40 # workers
-        for worker in myWorkers:
-            refCoords=worker.coords
-            inputs[refCoords[0]+refCoords[1]*10]=True
+        ### LOCATION ###
+        # tell if angent is on bottom for location processing
+        if myHill.coords[1] > 3:
+            onBottom = True
+        else:
+            onBottom = False
 
-        inputs += [False] * 40 # queen
-        refCoords=myQueen.coords
-        inputs[40+refCoords[0]+refCoords[1]*10]=True
+        # Scottie's ants
+        inputs += self.getLocationInputs(myWorkers, 40, onBottom, False) # workers
+        inputs += self.getLocationInputs([myQueen], 40, onBottom, False) # queen
+        inputs += self.getLocationInputs(mySoldiers, 100, onBottom, True) # soldiers
+        # enemy ants
+        inputs += self.getLocationInputs(enemyWorkers, 40, onBottom, False) # workers
+        inputs += self.getLocationInputs(enemyArmy, 100, onBottom, True) # army
+
+
+        # for worker in myWorkers:
+        #     x = worker.coords[0]
+        #     y = worker.coords[1]
+        #     if worker.coords[0] > 4:
+        #         # on bottom half
+        #         x = 9 - worker.coords[0]
+        #         y = 9 - worker.coords[1]
+        #     workers[x + y * 10] = True
+        # inputs += workers
+        #
+        # queen = [False] * 40 # queen
+        # x = myQueen.coords[0]
+        # y = myQueen.coords[1]
+        # if myQueen.coords[0] > 4:
+        #     # on bottom half
+        #     x = 9 - myQueen.coords[0]
+        #     y = 9 - myQueen.coords[1]
+        # queen[x + y * 10] = True
+        # inputs += queen
+        #
+        # # TODO consider adding cells for queen blocking other ants
+        #
+        # soldiers = [False] * 100 # soldiers
+        # for soldier in mySoldiers:
+        #     x = soldier.coords[0]
+        #     y = soldier.coords[1]
+        #     if soldier.coords[0] > 4:
+        #         # on bottom half
+        #         x = 9 - soldier.coords[0]
+        #         y = 9 - soldier.coords[1]
+        #     soldiers[x + y * 10] = True
+        # inputs += soldiers
+        #
+        # #forEnemyAnts
+        # enemy = [False] * 40
+        # for worker in enemyWorkers:
+        #     x = worker.coords[0]
+        #     y = worker.coords[1]
+        #     if worker.coords[0] > 4:
+        #         # on bottom half
+        #         x = 9 - worker.coords[0]
+        #         y = 9 - worker.coords[1]
+        #     enemy[x + y * 10] = True
+        # inputs += enemy
+        #
+        # enemyAttackers = [False] * 100
+        # for attacker in enemyArmy:
+        #     x = attacker.coords[0]
+        #     y = attacker.coords[1]
+        #     if attacker.coords[0] > 4:
+        #         # on bottom half
+        #         x = 9 - attacker.coords[0]
+        #         y = 9 - attacker.coords[1]
+        #     enemyAttackers[x + y * 10] = True
+        # inputs += enemyAttackers
+
+        # rest of queen
         if approxDist(myQueen.coords, myHill.coords) == 0 or approxDist(myQueen.coords, myTunnel.coords) == 0:
             inputs.append(True)
         else:
@@ -536,18 +629,6 @@ class AIPlayer(Player):
             if myQueen.coords == food.coords:
                 foodBlock = True
         inputs.append(foodBlock)
-        # TODO consider adding cells for queen blocking other ants
-
-        inputs += [False] * 100 # soldiers
-        for soldier in mySoliders:
-            refCoords=soldier.coords
-            inputs[180+refCoords[0]+refCoords[1]*10]=True # TODO check correct
-
-        #forEnemyAnts
-        inputs += [False] * 40
-        for worker in enemyWorkers:
-            refCoords=worker.coords
-            inputs[refCoords[0]+refCoords[1]*10]=True
 
         # Number of ants : mix of boolean and scales
         #My ants: worker = 0 or more than 2, worker = 1, worker = 2, queen, drone, soldier <= 2, soldier > 2, r_soldier
@@ -566,18 +647,18 @@ class AIPlayer(Player):
         else:
             inputs.append(False)
 
-        if len(mySoliders) > 2: # my soldiers
+        if len(mySoldiers) > 2: # my soldiers
             inputs.append(True)
         else:
             inputs.append(False)
-        if len(mySoliders) == 0:
+        if len(mySoldiers) == 0:
             inputs.append(0)
-        elif len(mySoliders) == 1:
+        elif len(mySoldiers) == 1:
             inputs.append(0.2)
-        elif len(mySoliders) == 2:
+        elif len(mySoldiers) == 2:
             inputs.append(0.4)
 
-        if len(myRSoliders) > 0: # my ranged soldiers
+        if len(myRSoldiers) > 0: # my ranged soldiers
             inputs.append(True)
         else:
             inputs.append(False)
@@ -618,10 +699,10 @@ class AIPlayer(Player):
                     sumCarry += 20
             else:
                 numForage += 1
-                sumForage += (12 - min(approxDist(worker.coords, myFood[0].coords),
-                               approxDist(worker.coords, myFood[1].coords)))
+                sumForage += (12 - min(approxDist(worker.coords, myFoods[0].coords),
+                               approxDist(worker.coords, myFoods[1].coords)))
                 # Encourage worker to go on food if it does not have food
-                if min(approxDist(worker.coords, myFood[0].coords), approxDist(worker.coords, myFood[1].coords)) == 0:
+                if min(approxDist(worker.coords, myFoods[0].coords), approxDist(worker.coords, myFoods[1].coords)) == 0:
                     sumForage += 20
         if numCarry > 0:
             inputs.append((sumCarry / float(numCarry)) / 32)
@@ -641,7 +722,7 @@ class AIPlayer(Player):
             # 12 because basically everywhere is reachable in 12 steps, and we want closer positions to be a larger
             # negative increment to the score per worker than distant ones
             if worker.carrying:
-                nunCarry += 1
+                numCarry += 1
                 sumCarry -= (12 - min(approxDist(worker.coords, enemyHill.coords),
                                approxDist(worker.coords, enemyTunnel.coords)))
         if numCarry > 0:
@@ -661,7 +742,7 @@ class AIPlayer(Player):
         numArmy = 0
         sumArmy = 0
         # similar to workers, lesser distance to target is preferable to equal or greater
-        for soldier in soldierList:
+        for soldier in mySoldiers:
             numArmy  += 1
             dist = approxDist(soldier.coords, target)
             sumArmy += (25 - dist)
@@ -684,9 +765,6 @@ class AIPlayer(Player):
         else:
             inputs.append(0)
 
-        return x
-
-
         #health: half health = 0
         #my ants: queen health
         #enemy ants: queen health
@@ -703,6 +781,11 @@ class AIPlayer(Player):
         #enemy ants: food amount
         inputs.append(state.inventories[me].foodCount / 11)
         inputs.append(state.inventories[1 - me].foodCount / 11)
+
+        self.inputs = inputs
+
+        # bias
+        inputs.append(1)
 
 
 		# Locations : boolean
@@ -741,7 +824,8 @@ class AIPlayer(Player):
     ##
     def neuralNetwork(self, state, me, training = False, score = None):
         # map inputs correctly
-        self.mapInputs(state)
+        self.mapInputs(state, me)
+        # print(len(self.inputs))
 
         # run network by running input array through network
             # multiply by weight
@@ -757,7 +841,6 @@ class AIPlayer(Player):
             print(self.weights)
 
         return output
-        pass
 
     ## TODO complete
     # runNetwork
