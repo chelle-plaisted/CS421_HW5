@@ -497,14 +497,10 @@ class AIPlayer(Player):
     #
     # Parameters:
     #   state: the state to generate inputs for
+    #   me: Scottie's id
     ##
-    def mapInputs(self, state):
-		# map worker locations
-
-        pass
-		###
-<<<<<<< HEAD
-        
+    def mapInputs(self, state, me):
+        # general info
         enemyHill = getConstrList(state, 1-me, (ANTHILL,))[0]
         enemyTunnel = getConstrList(state, 1-me, (TUNNEL,))[0]
         enemyArmy = getAntList(state, 1-me, (DRONE,SOLDIER,R_SOLDIER,))
@@ -516,128 +512,199 @@ class AIPlayer(Player):
         mySoliders = getAntList(state, me, (SOLDIER,))
         myRSoliders = getAntList(state, me, (R_SOLDIER,))
         myDrone = getAntList(state, me, (DRONE,))
+        inputs = []
 
-        
+		# map worker locations
         ##Locations : boolean
         #My ants: worker  (40), queen (40), soliders(100)
         #enemy ants: worker(40), attacking ant any type-- Drone, Solider, R_Soldier (100)
-        
-        
-        #formyAnts
-        inputs=[]
-        for i in range(0,40):
-            inputs.append(False)
-        for i in range(0,len(myWorkers)):
-            ref=myWorkers[i]
-            refCoords=ref.coords
-            inputs[refCoords[0]+refCoords[1]*10]=True
-        
-        for i in range(0,40):
-            inputs.append(False)
-        for i in range(0,len(myQueen)):
-            ref=myQueen[i]
-            refCoords=ref.coords
-            inputs[40+refCoords[0]+refCoords[1]*10]=True
-        
-        for i in range(0,100):
-            inputs.append(False)
-        for i in range(0,len(mySoliders)):
-            ref=mySoliders[i]
-            refCoords=ref.coords
-            inputs[180+refCoords[0]+refCoords[1]*10]=True
-        
-        for i in range(0,100):
-            inputs.append(False)
-        for i in range(0,len(myRSoliders)):
-            ref=myRSoliders[i]
-            refCoords=ref.coords
-            inputs[280+refCoords[0]+refCoords[1]*10]=True
-        
-        
-        #forEnemyAnts
-        for i in range(0,40):
-            inputs.append(False)
-        for i in range(0,len(enemyWorkers)):
-            ref=enemyWorkers[i]
-            refCoords=ref.coords
+        # Scottie's ants
+        inputs += [False] * 40 # workers
+        for worker in myWorkers:
+            refCoords=worker.coords
             inputs[refCoords[0]+refCoords[1]*10]=True
 
-
-        
-        
-        
-        
-        #Number of ants : mix of boolean and scales
-        #My ants: worker = 0 or more than 2, worker = 1, worker = 2, queen, drone, soldier <= 2, soldier > 2, r_soldier
-        #enemy ants: worker, any type of attacking ant
-        
-        if len(myWorkers) = 0:
+        inputs += [False] * 40 # queen
+        refCoords=myQueen.coords
+        inputs[40+refCoords[0]+refCoords[1]*10]=True
+        if approxDist(myQueen.coords, myHill.coords) == 0 or approxDist(myQueen.coords, myTunnel.coords) == 0:
             inputs.append(True)
         else:
             inputs.append(False)
-        if len(myWorkers) >= 2:
-            
-            
-        
-        
-        
-        
-        
+        foodBlock = False
+        for food in myFoods:
+            if myQueen.coords == food.coords:
+                foodBlock = True
+        inputs.append(foodBlock)
+        # TODO consider adding cells for queen blocking other ants
+
+        inputs += [False] * 100 # soldiers
+        for soldier in mySoliders:
+            refCoords=soldier.coords
+            inputs[180+refCoords[0]+refCoords[1]*10]=True # TODO check correct
+
+        #forEnemyAnts
+        inputs += [False] * 40
+        for worker in enemyWorkers:
+            refCoords=worker.coords
+            inputs[refCoords[0]+refCoords[1]*10]=True
+
+        # Number of ants : mix of boolean and scales
+        #My ants: worker = 0 or more than 2, worker = 1, worker = 2, queen, drone, soldier <= 2, soldier > 2, r_soldier
+        #enemy ants: worker, any type of attacking ant
+
+        if len(myWorkers) == 0 or len(myWorkers) > 2: # my workers
+            inputs.append(True)
+        else:
+            inputs.append(False)
+        if len(myWorkers) == 1:
+            inputs.append(True)
+        else:
+            inputs.append(False)
+        if len(myWorkers) == 2:
+            inputs.append(True)
+        else:
+            inputs.append(False)
+
+        if len(mySoliders) > 2: # my soldiers
+            inputs.append(True)
+        else:
+            inputs.append(False)
+        if len(mySoliders) == 0:
+            inputs.append(0)
+        elif len(mySoliders) == 1:
+            inputs.append(0.2)
+        elif len(mySoliders) == 2:
+            inputs.append(0.4)
+
+        if len(myRSoliders) > 0: # my ranged soldiers
+            inputs.append(True)
+        else:
+            inputs.append(False)
+
+        if len(myDrone) > 0: # my drones
+            inputs.append(True)
+        else:
+            inputs.append(False)
+
+        inputs.append(0.02 * len(enemyArmy)) # enemy army
+
+        inputs.append(0.04 * len(enemyWorkers)) # enemy workers
+
+        if len(enemyWorkers) == 0:
+            inputs.append(True)
+        else:
+            inputs.append(False)
+
         #food distance :
         #My ants: average distance of all carrying workers to food drop off, average distance of all not carrying workers to food
         #enemy ants:  average distance of all carrying workers to food drop off, average distance of all not carrying workers to food
-        
-        ###
-        x = 0
+
+        # my workers
+        numCarry = 0
+        sumCarry = 0
+        numForage = 0
+        sumForage = 0
+
+        for worker in myWorkers:
+            # 12 because basically everywhere is reachable in 12 steps, and we want closer positions to be a larger
+            # positive increment to the score per worker than distant ones
+            if worker.carrying:
+                numCarry += 1
+                sumCarry += (12 - min(approxDist(worker.coords, myHill.coords),
+                               approxDist(worker.coords, myTunnel.coords)))
+                # Encourage worker to go on hill/tunnel if it has food
+                if min(approxDist(worker.coords, myHill.coords), approxDist(worker.coords, myTunnel.coords)) == 0:
+                    sumCarry += 20
+            else:
+                numForage += 1
+                sumForage += (12 - min(approxDist(worker.coords, myFood[0].coords),
+                               approxDist(worker.coords, myFood[1].coords)))
+                # Encourage worker to go on food if it does not have food
+                if min(approxDist(worker.coords, myFood[0].coords), approxDist(worker.coords, myFood[1].coords)) == 0:
+                    sumForage += 20
+        if numCarry > 0:
+            inputs.append((sumCarry / float(numCarry)) / 32)
+        else:
+            inputs.append(0)
+
+        if numForage > 0:
+            inputs.append((sumForage / float(numForage)) / 32)
+        else:
+            inputs.append(0)
+
+        # enemy workers
         # the less ants the enemy has, the better
-        if len(enemyWorkers) == 0:
-            x += 40
-        x += (-2 * len(enemyArmy))
-        x += (50 - (5 * enemyQueen.health))
-        
+        numCarry = 0
+        sumCarry = 0
         for worker in enemyWorkers:
             # 12 because basically everywhere is reachable in 12 steps, and we want closer positions to be a larger
             # negative increment to the score per worker than distant ones
             if worker.carrying:
-                x -= (12 - min(approxDist(worker.coords, enemyHill.coords),
+                nunCarry += 1
+                sumCarry -= (12 - min(approxDist(worker.coords, enemyHill.coords),
                                approxDist(worker.coords, enemyTunnel.coords)))
+        if numCarry > 0:
+            inputs.append((sumCarry / float(numCarry)) / 32)
+        else:
+            inputs.append(0)
 
-
-        # the closer the enemy's attacking ants are to my queen, the worse
-        for enemy in enemyArmy:
-            dist = approxDist(enemy.coords, myQueen.coords)
-            x -= (25 - dist)
-        
-        return x
-        
-        
         #soldier distance : avg / 25
         #my ants: average distance of all soldiers to their target
-        
-        
-        
-        
+        # my soldiers
+        # target enemy workers first, then attack queen
+        if len(enemyWorkers) > 0:
+            target = enemyWorkers[0].coords
+        else:
+            target = getEnemyInv(None, state).getQueen().coords
+
+        numArmy = 0
+        sumArmy = 0
+        # similar to workers, lesser distance to target is preferable to equal or greater
+        for soldier in soldierList:
+            numArmy  += 1
+            dist = approxDist(soldier.coords, target)
+            sumArmy += (25 - dist)
+        if numArmy > 0:
+            inputs.append((sumArmy / float(numArmy)) / 25)
+        else:
+            inputs.append(0)
+
+
+        # enemy army
+        numArmy = 0
+        sumArmy = 0
+        for enemy in enemyArmy:
+            numArmy += 1
+            dist = approxDist(enemy.coords, myQueen.coords)
+            sumArmy -= (25 - dist)
+
+        if numArmy > 0:
+            inputs.append((sumArmy / float(numArmy)) / 25)
+        else:
+            inputs.append(0)
+
+        return x
+
+
         #health: half health = 0
         #my ants: queen health
         #enemy ants: queen health
         if enemyQueen.health >= myQueen.health:
-            return -99999
+            inputs.append(True)
+        else:
+            inputs.append(False)
 
-        elif enemyQueen.health < myQueen.health:
-            return 0
+        inputs.append(-1 + 0.25 * enemyQueen.health)
+        inputs.append(-1 + 0.25 * myQueen.health)
 
-
-
-        
-        
-        
         #amount of food: 1 food = 1/11
         #my ants: food amount
         #enemy ants: food amount
-        
+        inputs.append(state.inventories[me].foodCount / 11)
+        inputs.append(state.inventories[1 - me].foodCount / 11)
 
 
-=======
 		# Locations : boolean
 		# 	My ants: worker  (40), queen (40), soliders(100)
 		# 	enemy ants: worker(40), attacking ant any type-- Drone, Solider, R_Soldier (100)
@@ -655,7 +722,6 @@ class AIPlayer(Player):
 		# amount of food: 1 food = 1/11
 		# 	my ants: food amount
 		# 	enemy ants: food amount
->>>>>>> cb8579ede2f0e677fa01e899fd4dfca0f27b81ac
 		###
 
     ## TODO complete
