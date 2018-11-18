@@ -886,9 +886,9 @@ class AIPlayer(Player):
         outputs.append(1) # bias
         self.outputs = outputs
         # weighted total
-        for val in outputs:
-            total += val * self.weights[counter]
-            counter += 1
+        subweights = self.weights[counter:counter + len(outputs)]
+        mult = [a*b for a,b in zip(outputs, subweights)]
+        total = sum(mult)
         # apply activation function
         result = 1 / (1 + math.exp(-total))
         t3 = time.time()
@@ -930,7 +930,6 @@ class AIPlayer(Player):
             weights.append(self.weights[counter] + self.learningWeight * outputErrorTerm * val)
             counter += 1
         self.weights = weights
-
 
 
 ##
