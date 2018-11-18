@@ -1,5 +1,6 @@
 import sys
 import math
+import time
 sys.path.append("..")  # so other modules can be found in parent dir
 from Player import *
 from AIPlayerUtils import *
@@ -138,11 +139,16 @@ class AIPlayer(Player):
             nodes = []
             for move in moves:
                 nextState = getNextStateAdversarial(state, move)
+                t1 = time.time()
                 score = self.performanceMeasure(nextState, me, state.whoseTurn)
-                print('eval function: ', score)
+                # print('eval function: ', score)
                 # TODO: call neuralNetwork(state) instead of performance measure (NOT when learning)
+                t2 = time.time()
+                # print('old eval time: ', t2 - t1)
                 score2 = self.neuralNetwork(nextState, me)
-                print('network: ', score2)
+                t3 = time.time()
+                # print('network time: ', t3 - t2)
+                # print('network: ', score2)
                 nodes += [Node(move, nextState, score)]
 
             # prune all but the best BREADTH_LIMIT nodes
@@ -825,7 +831,10 @@ class AIPlayer(Player):
     ##
     def neuralNetwork(self, state, me, training = False, score = None):
         # map inputs correctly
+        t1 = time.time()
         self.mapInputs(state, me)
+        t2 = time.time()
+        # print('mapping time: ', t2 - t1)
         # print(len(self.inputs))
 
         # run network by running input array through network
@@ -833,13 +842,15 @@ class AIPlayer(Player):
             # sum for each node
             # apply activation function: g(x) = 1 / 1- e^x
         output = self.runNetwork()
+        t3 = time.time()
+        # print('running time: ', t3 - t2)
 
         if training:
             # calculate error (compare)
             error = score - output
             # apply backpropogation to update weights stored in instance variables
             self.backpropogate(error, score)
-            print(self.weights)
+            # print(self.weights)
 
         return output
 
@@ -854,31 +865,34 @@ class AIPlayer(Player):
     def runNetwork(self):
         outputs = []
         # run inputs through hidden layer to get outputs
-
         # each input gets run for each hidden node
+        t1 = time.time()
         for i in range(0, self.numHiddenNodes):
             # get weighted sum
-            sum = 0
+            total = 0
             counter = i * len(self.inputs) # get to correct set of inputs
-            for input in self.inputs:
-                sum += input * self.weights[counter]
-                counter += 1
+            subweights = self.weights[counter:counter + len(self.inputs)]
+            mult = [a*b for a,b in zip(self.inputs, subweights)]
+            total = sum(mult)
 
             # apply activation function
-            result = 1 / (1 + math.exp(-sum))
+            result = 1 / (1 + math.exp(-total))
             outputs.append(result)
-
+        t2 = time.time()
+        print('hidden node time: ', t2 -t1)
         # with hidden node values, propogate to output node
-        sum = 0
+        total = 0
         counter = self.numHiddenNodes * len(self.inputs) # starting index in weights
         outputs.append(1) # bias
         self.outputs = outputs
-        # weighted sum
+        # weighted total
         for val in outputs:
-            sum += val * self.weights[counter]
+            total += val * self.weights[counter]
             counter += 1
         # apply activation function
-        result = 1 / (1 + math.exp(-sum))
+        result = 1 / (1 + math.exp(-total))
+        t3 = time.time()
+        print('output node time: ', t3 - t2)
         return result
 
     ## TODO complete
@@ -1085,5 +1099,5 @@ result = newPlayer.runNetwork()
 error = 2 - result
 newPlayer.backpropogate(error, result)
 newResult = newPlayer.runNetwork()
-if not newResult > result:
+if not (2 - newResult) < (2 -result):
     print("Error in backpropogate(): backpropogate() alters result from %s to %s with a target result of 2" % (result, newResult))
