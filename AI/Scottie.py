@@ -39,6 +39,7 @@ class AIPlayer(Player):
         self.learningWeight = 1 # TODO : test and edit if needed
         self.numHiddenNodes = 330 # TODO change to 2/3 * 1 + len(self.inputs)
         self.weights = self.initializeWeights(True) #TODO remove 'True' when not training
+        self.outputs = []
 
     ##
     # getPlacement
@@ -837,7 +838,7 @@ class AIPlayer(Player):
             # calculate error (compare)
             error = score - output
             # apply backpropogation to update weights stored in instance variables
-            self.backpropogate(error)
+            self.backpropogate(error, score)
             print(self.weights)
 
         return output
@@ -871,6 +872,7 @@ class AIPlayer(Player):
         sum = 0
         counter = self.numHiddenNodes * len(self.inputs) # starting index in weights
         outputs.append(1) # bias
+        self.outputs = outputs
         # weighted sum
         for val in outputs:
             sum += val * self.weights[counter]
@@ -888,8 +890,32 @@ class AIPlayer(Player):
     # Parameters:
     #   error : error of network
     ##
-    def backpropogate(self, error):
-        pass
+    def backpropogate(self, error, score):
+        # calculate error term (error * g'(in) of output nodes
+        outputErrorTerm = error * score * (1-score)
+        # error of hidden nodes --> error term
+        errors = []
+        errorTerms = []
+
+        outputWeights = self.weights[-self.numHiddenNodes:]
+        for i in range(0, self.numHiddenNodes):
+            errors.append(outputErrorTerm * outputWeights[i])
+            errorTerms.append(errors[i] * self.outputs[i] * (1 - self.outputs[i]))
+
+        # adjust weights : use same structure as running network to ensure correct
+        # weights adjusted
+        weights = []
+        for i in range(0, self.numHiddenNodes):
+            counter = i * len(self.inputs) # get to correct set of inputs
+            for input in self.inputs:
+                weights.append(self.weights[counter] + self.learningWeight * errorTerms[i] * input)
+                counter += 1
+        counter = self.numHiddenNodes * len(self.inputs) # starting index in weights
+        # weighted sum
+        for val in self.outputs:
+            weights.append(self.weights[counter] + self.learningWeight * outputErrorTerm * val)
+            counter += 1
+        self.weights = weights
 
 
 
@@ -1050,3 +1076,14 @@ newPlayer.numHiddenNodes = 3
 result = newPlayer.runNetwork()
 if not round(result, 3) == 0.980:
     print("Error in runNetwork(): runNetwork() returns %s instead of 0.980 (rounded)" % round(result, 3))
+
+# test backPropogate
+newPlayer.inputs = [2, 4, 1] # 1 for bias
+newPlayer.weights = [-1, 1, 1, 2, 3, 2, 0, -2, -1, 2, 3, -1, -1]
+newPlayer.numHiddenNodes = 3
+result = newPlayer.runNetwork()
+error = 2 - result
+newPlayer.backpropogate(error, result)
+newResult = newPlayer.runNetwork()
+if not newResult > result:
+    print("Error in backpropogate(): backpropogate() alters result from %s to %s with a target result of 2" % (result, newResult))
