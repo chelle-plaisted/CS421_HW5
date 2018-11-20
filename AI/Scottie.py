@@ -44,10 +44,11 @@ class AIPlayer(Player):
         self.inputs = [0] * 343 # will be length 343
         self.nodeList = [] # list of (state, score) for learning
         self.learningWeight = 0.5 # TODO : test and edit if needed
-        self.numHiddenNodes = 100 # TODO change to 2/3 * 1 + len(self.inputs)
+        self.numHiddenNodes = 16 # TODO change to 2/3 * 1 + len(self.inputs)
         self.weights = self.initializeWeights(True) #TODO remove 'True' when not training
         self.me = None
         self.outputs = []
+        self.difference = []
 
 
     ##
@@ -495,6 +496,7 @@ class AIPlayer(Player):
                 rtn += [random.uniform(-1, 1)]
         else:
             pass
+        #print(rtn)
         return rtn
 
     ## TODO complete
@@ -574,12 +576,12 @@ class AIPlayer(Player):
             onBottom = False
 
         # Scottie's ants
-        inputs += self.getLocationInputs(myWorkers, 40, onBottom, False) # workers
-        inputs += self.getLocationInputs([myQueen], 40, onBottom, False) # queen
-        inputs += self.getLocationInputs(mySoldiers, 100, onBottom, True) # soldiers
+  #      inputs += self.getLocationInputs(myWorkers, 40, onBottom, False) # workers
+   #     inputs += self.getLocationInputs([myQueen], 40, onBottom, False) # queen
+    #    inputs += self.getLocationInputs(mySoldiers, 100, onBottom, True) # soldiers
         # enemy ants
-        inputs += self.getLocationInputs(enemyWorkers, 40, onBottom, False) # workers
-        inputs += self.getLocationInputs(enemyArmy, 100, onBottom, True) # army
+     #   inputs += self.getLocationInputs(enemyWorkers, 40, onBottom, False) # workers
+      #  inputs += self.getLocationInputs(enemyArmy, 100, onBottom, True) # army
 
         # rest of queen
         if approxDist(myQueen.coords, myHill.coords) == 0 or approxDist(myQueen.coords, myTunnel.coords) == 0:
@@ -776,19 +778,14 @@ class AIPlayer(Player):
     ##
     def neuralNetwork(self, state, me, counter, training = False, score = None):
         # map inputs correctly
-        t1 = time.time()
         self.mapInputs(state, me)
-        t2 = time.time()
-        # print('mapping time: ', t2 - t1)
-        # print(len(self.inputs))
 
         # run network by running input array through network
             # multiply by weight
             # sum for each node
             # apply activation function: g(x) = 1 / 1- e^x
         output = self.runNetwork(counter)
-        t3 = time.time()
-        # print('running time: ', t3 - t2)
+        print(output)
 
         if training:
             # calculate error (compare)
@@ -796,8 +793,6 @@ class AIPlayer(Player):
             # apply backpropogation to update weights stored in instance variables
             self.backpropogate(error, score)
             # print(self.weights)
-        t4 = time.time()
-        # print('backprop time: ', t4 - t3)
         return output
 
     ## TODO complete
@@ -831,6 +826,7 @@ class AIPlayer(Player):
                 print('weights: ', self.weights)
                 print('error 1: x = ', total)
                 print('iteration: ', counter)
+                print('difference: ', self.difference)
                 sys.exit()
             outputs.append(result)
         t2 = time.time()
@@ -863,6 +859,7 @@ class AIPlayer(Player):
     #   error : error of network
     ##
     def backpropogate(self, error, score):
+        print('backprop')
         # calculate error term (error * g'(in) ) of output nodes
         outputErrorTerm = error * score * (1-score)
 
@@ -890,7 +887,9 @@ class AIPlayer(Player):
         t3 = time.time()
         subweights = self.weights[counter:counter + len(self.outputs)]
         weights += [a + self.learningWeight * outputErrorTerm * b for a,b in zip(subweights, self.outputs)]
-
+        self.difference = [a - b for a,b in zip(self.weights, weights)]
+        #print(difference)
+        #print('============')
         self.weights = weights
         t4 = time.time()
         # print('error & error term of hidden nodes: ', t2 - t1)
@@ -1066,3 +1065,39 @@ newPlayer.backpropogate(error, result)
 newResult = newPlayer.runNetwork(0)
 if not (2 - newResult) < (2 -result):
     print("Error in backpropogate(): backpropogate() alters result from %s to %s with a target result of 2" % (result, newResult))
+
+	
+# bigger test
+testState = GameState.getBasicState()
+food1 = Building((5, 0), FOOD, NEUTRAL)
+food2 = Building((4, 0), FOOD, NEUTRAL)
+testState.board[5][0].constr = food1
+testState.board[4][0].contrs = food2
+food3 = Building((4, 9), FOOD, NEUTRAL)
+food4 = Building((5, 9), FOOD, NEUTRAL)
+testState.board[4][9].constr = food3
+testState.board[5][9].contrs = food4
+testState.inventories[NEUTRAL].constrs += [food1, food2]
+testState.inventories[NEUTRAL].constrs += [food3, food4]
+p1Worker = Ant((5, 4), WORKER, 0)
+testState.board[5][4].ant = p1Worker
+testState.inventories[0].ants.append(p1Worker)
+testState.inventories[0].foodCount = 10
+print('-------------------------------')
+
+newPlayer = AIPlayer(PLAYER_ONE)
+desiredScore = newPlayer.performanceMeasure(testState, 0, 0)
+old = newPlayer.weights
+networkScore = newPlayer.runNetwork(0)
+for i in range(0, 100):
+    #networkScore = newPlayer.neuralNetwork(testState, 0, 0, True, desiredScore)
+    newPlayer.mapInputs(testState, 0)
+    result = newPlayer.runNetwork(0)
+    print(result)
+    error = desiredScore - result
+    newPlayer.backpropogate(error, result)
+new = newPlayer.weights
+backpropScore = newPlayer.runNetwork(0)
+print('Desired Score: ', desiredScore)
+print('Network Score: ', networkScore)
+print('Post-learning Score: ', backpropScore)
