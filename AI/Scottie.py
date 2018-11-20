@@ -41,7 +41,7 @@ class AIPlayer(Player):
     def __init__(self, inputPlayerId):
         super(AIPlayer, self).__init__(inputPlayerId, "Michael Scott")
         # neural network instance variables
-        self.inputs = [0] * 343 # will be length 343
+        self.inputs = [0] * 23 # will be length 343
         self.nodeList = [] # list of (state, score) for learning
         self.learningWeight = 0.5 # TODO : test and edit if needed
         self.numHiddenNodes = 16 # TODO change to 2/3 * 1 + len(self.inputs)
@@ -785,13 +785,13 @@ class AIPlayer(Player):
             # sum for each node
             # apply activation function: g(x) = 1 / 1- e^x
         output = self.runNetwork(counter)
-        print(output)
+        #print(output)
 
         if training:
             # calculate error (compare)
             error = score - output
             # apply backpropogation to update weights stored in instance variables
-            self.backpropogate(error, score)
+            self.backpropogate(error, output)
             # print(self.weights)
         return output
 
@@ -859,7 +859,6 @@ class AIPlayer(Player):
     #   error : error of network
     ##
     def backpropogate(self, error, score):
-        print('backprop')
         # calculate error term (error * g'(in) ) of output nodes
         outputErrorTerm = error * score * (1-score)
 
@@ -1090,12 +1089,12 @@ desiredScore = newPlayer.performanceMeasure(testState, 0, 0)
 old = newPlayer.weights
 networkScore = newPlayer.runNetwork(0)
 for i in range(0, 100):
-    #networkScore = newPlayer.neuralNetwork(testState, 0, 0, True, desiredScore)
-    newPlayer.mapInputs(testState, 0)
-    result = newPlayer.runNetwork(0)
-    print(result)
-    error = desiredScore - result
-    newPlayer.backpropogate(error, result)
+    result = newPlayer.neuralNetwork(testState, 0, 0, True, desiredScore)
+    #newPlayer.mapInputs(testState, 0)
+    #result = newPlayer.runNetwork(0)
+    #print(result)
+    #error = desiredScore - result
+    #newPlayer.backpropogate(error, result)
 new = newPlayer.weights
 backpropScore = newPlayer.runNetwork(0)
 print('Desired Score: ', desiredScore)
