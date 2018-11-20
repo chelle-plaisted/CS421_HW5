@@ -41,11 +41,11 @@ class AIPlayer(Player):
     def __init__(self, inputPlayerId):
         super(AIPlayer, self).__init__(inputPlayerId, "Michael Scott")
         # neural network instance variables
-        self.inputs = [0] * 63 # will be length 343 with commented out code
+        self.inputs = [0] * 23 # will be length 343 with commented out code
         self.nodeList = [] # list of (state, score) for learning
-        self.learningWeight = 0.2 # TODO : test and edit if needed
-        self.numHiddenNodes = 42 # set to 2/3 * 1 + len(self.inputs)
-        self.training = True # TODO set to false when not training
+        self.learningWeight = 2 # TODO : test and edit if needed
+        self.numHiddenNodes = 16 # set to 2/3 * 1 + len(self.inputs)
+        self.training = False # TODO set to false when not training
         self.weights = self.initializeWeights()
         self.me = None # id of this player
         self.outputs = [] # outputs of the hidden layer
@@ -516,7 +516,7 @@ class AIPlayer(Player):
     # Return : the cells
     ##
     def getLocationInputs(self, antList, length, bottom, fullRange = True):
-        newCells = [False] * length
+        newCells = [-1] * length
         if antList is None:
             return newCells
         # reset the cells where ants are located to be True
@@ -536,7 +536,7 @@ class AIPlayer(Player):
             newCells[x + y * 10] = True
         return newCells
 
-    ## TODO complete
+    ##
     # mapInputs
     #
     # Description: map the relevant information from the state to an input array containing
@@ -579,7 +579,7 @@ class AIPlayer(Player):
             onBottom = False
 
         # Scottie's ants
-        inputs += self.getLocationInputs(myWorkers, 40, onBottom, False) # workers
+        # inputs += self.getLocationInputs(myWorkers, 40, onBottom, False) # workers
         # inputs += self.getLocationInputs([myQueen], 40, onBottom, False) # queen
         # inputs += self.getLocationInputs(mySoldiers, 100, onBottom, True) # soldiers
         # enemy ants
@@ -603,11 +603,11 @@ class AIPlayer(Player):
         if len(myWorkers) == 0 or len(myWorkers) > 2: # my workers
             inputs.append(True)
         else:
-            inputs.append(False)
+            inputs.append(-1)
         if len(myWorkers) == 1:
             inputs.append(True)
         else:
-            inputs.append(False)
+            inputs.append(-1)
         if len(myWorkers) == 2:
             inputs.append(True)
         else:
@@ -616,7 +616,7 @@ class AIPlayer(Player):
         if len(mySoldiers) > 2: # my soldiers
             inputs.append(True)
         else:
-            inputs.append(False)
+            inputs.append(-1)
         if len(mySoldiers) == 0:
             inputs.append(0)
         elif len(mySoldiers) == 1:
@@ -627,12 +627,12 @@ class AIPlayer(Player):
         if len(myRSoldiers) > 0: # my ranged soldiers
             inputs.append(True)
         else:
-            inputs.append(False)
+            inputs.append(-1)
 
         if len(myDrone) > 0: # my drones
             inputs.append(True)
         else:
-            inputs.append(False)
+            inputs.append(-1)
 
         inputs.append(0.02 * len(enemyArmy)) # enemy army
         inputs.append(0.04 * len(enemyWorkers)) # enemy workers
@@ -640,7 +640,7 @@ class AIPlayer(Player):
         if len(enemyWorkers) == 0:
             inputs.append(True)
         else:
-            inputs.append(False)
+            inputs.append(-1)
 
         ### FOOD DISTANCE ###
         #My ants: average distance of all carrying workers to food drop off, average distance of all not carrying workers to food
@@ -738,11 +738,11 @@ class AIPlayer(Player):
 
         ### HEALTH ###
         if enemyQueen is None:
-            inputs.append(False)
+            inputs.append(-1)
         elif myQueen is None or enemyQueen.health >= myQueen.health:
             inputs.append(True)
         else:
-            inputs.append(False)
+            inputs.append(-1)
 
         if not enemyQueen is None:
             inputs.append(-1 + 0.2 * enemyQueen.health)
@@ -791,6 +791,10 @@ class AIPlayer(Player):
         if self.training:
             # calculate error (compare)
             error = score - output
+            if training and error < 0.1 and error > -0.1:
+                print('Good weights: ', self.weights)
+                print('error: ', error)
+                print('--------------')
             # apply backpropogation to update weights stored in instance variables
             self.backpropogate(error, output)
         return output
@@ -843,7 +847,7 @@ class AIPlayer(Player):
             result = 1 / (1 + math.exp(-total))
         except:
             print('error 1: x = ', total)
-        print(result)
+        # print(result)
         return result
 
     ##
