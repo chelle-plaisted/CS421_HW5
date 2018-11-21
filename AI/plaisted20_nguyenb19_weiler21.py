@@ -470,9 +470,6 @@ class AIPlayer(Player):
                     self.neuralNetwork(element.state, element.eval)
             # print the weights
             print('Final weights: ', self.weights)
-            print('Final goal score: ', self.goalScore)
-            print('Final network score: ', self.networkScore)
-            # print('differences: ', self.difference)
 		# reset the state-score map
         self.nodeList = []
 
@@ -821,13 +818,12 @@ class AIPlayer(Player):
         # with hidden node values, propogate to output node
         total = 0
         counter = self.numHiddenNodes * len(self.inputs) # starting index in weights
-        outputs.append(1) # bias
         self.outputs = outputs
+        outputs.append(1) # bias
         # weighted total
         subweights = self.weights[counter:counter + len(outputs)]
         mult = [a*b for a,b in zip(outputs, subweights)]
         total = sum(mult)
-        # print(total)
         # apply activation function
         try:
             result = 1 / (1 + math.exp(-total))
@@ -866,7 +862,8 @@ class AIPlayer(Player):
             weights += [a + self.learningWeight * errorTerms[i] * b for a,b in zip(subweights, self.inputs)]
 
         # between hidden nodes and output node
-        counter = self.numHiddenNodes * len(self.inputs) # starting index in weights
+        self.outputs.append(1) # output node bias
+        counter = self.numHiddenNodes * len(self.inputs) # starting index in weights connected to output node
         subweights = self.weights[counter:counter + len(self.outputs)]
         weights += [a + self.learningWeight * outputErrorTerm * b for a,b in zip(subweights, self.outputs)]
 
